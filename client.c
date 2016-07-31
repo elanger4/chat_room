@@ -147,3 +147,91 @@ void handle_user_input(connection_info *connection) {
 		}
 	}
 }
+
+void handle_server_message(connection_info * connection) {
+	message msg;
+
+	// Recieve a reply from the server
+	ssize_t recv_val = recv(connection->socket, &msg, sizeof(message), 0);
+	if (recv_val < 0) {
+		perror("recv failed");
+		exit(1);
+	} else if (recv_val == 0) {
+		close(connection->socket);
+		puts("Server disconnected");
+		exit(0);
+	}
+
+	switch(msg.type) {
+		case CONNECT:
+			printf(KYEL, "%s has connected" RESET "\n", msg.username);
+		break;
+
+		case DISCONNECT:
+			printf(KYEL, "%s has disconnected" RESET "\n", msg.username);
+		break;
+
+		case GET_USERS:
+			printf("%s", msg.data);
+		break;
+
+		case SET_USERNAME:
+			// TODO: name changes
+		break;
+
+		case PUBLIC_MESSAGE:
+			printf(KGRN, "%s" RESET "%s\n", msg.username, msg.data);
+		break;
+
+		case PRIVATE_MESSAGE:
+			printf(KWHT, "From %:" KCYN "%s\n" RESET, msg.username, msg.data);
+		break;
+
+		case TOO_FULL:
+			fprintf(stderr, KRED, "Server chatroom is too full to accept new clients" RESET "\n");
+			exit(0);
+		break;
+
+		default:
+			fprintf(stderr, KRED "Unknown message type received" RESET "\n");
+		break;
+	}
+}
+
+int main(int argc, char * argv[]) {
+	connection info connection;
+	fd_set file_descriptors;
+
+	if (argc != 3) {
+		fprintf(stderr, "Usage: %s <IP> <port>\n", argv[0]);
+		exit(1);
+	}
+
+	connect_to_server(&connection, argv[1], argv[2]);
+
+	// Keep communicating with server
+	while (true) {
+		FD_ZERO(&file_descriptors);
+		FD_SET(&file_descriptors);
+		FD_SET(connection.socket, &file_descriptors);
+		fflush(stdin);
+	}
+
+	if (select(connnection.socket+1, $file_descriptors, NULL, NULL, NULL) < 0) {
+		perror("Select failed")
+		exit(1);
+	}
+
+	if (FD_ISSET(STDIN_FILENO, &file_descriptors)) {
+		handle_user_input(&connection);
+	}
+
+	if (FD_ISSET(connection.socket, &file_descriptors)) {
+		handle_server_message(&connection);
+	}
+
+	close(connection.socket);
+	return 0;
+
+
+}
